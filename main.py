@@ -1,4 +1,45 @@
+import time
+import utime
+import pycom
+from pysense import Pysense
+from MPL3115A2 import MPL3115A2, ALTITUDE
+from machine import RTC
+import machine
+import ntptime
+from mqtt import MQTTClient
 from network import WLAN
+
+
+wlan = WLAN(mode=WLAN.STA)
+
+print("start")
+nets = wlan.scan()
+print("les nets: " + str(nets))
+for net in nets:
+    if net.ssid == 'AndroidAP4979':
+        print('Network found!')
+        wlan.connect(net.ssid, auth=(net.sec, 'e2810218cd5d'), timeout=5000)
+        while not wlan.isconnected():
+            utime.sleep(3)
+        print('WLAN connection succeeded!')
+        break
+Org_Id = "t8jaol"
+client = MQTTClient("d:"+Org_Id+":Pycom:123456", Org_Id +".messaging.internetofthings.ibmcloud.com",user="use-token-auth", password="Co_q7SzBQgSDO1Y-gW", port=1883)
+
+client.connect()
+print("Connected to Watson IoT!")
+
+while True:
+     print("Sending ON")
+     client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"d\":\"ON\"}")
+     time.sleep(10)
+     print("Sending OFF")
+     client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"d\":\"OFF\"}")
+     time.sleep(10)
+
+
+
+"""from network import WLAN
 import time
 import utime
 import pycom
@@ -14,9 +55,9 @@ print("start")
 nets = wlan.scan()
 print("les nets: " + str(nets))
 for net in nets:
-    if net.ssid == 'Livebox-fd84':
+    if net.ssid == 'AndroidAP4979':
         print('Network found!')
-        wlan.connect(net.ssid, auth=(net.sec, 'EDCE75E392ECDDD3F25ECCF7C4'), timeout=5000)
+        wlan.connect(net.ssid, auth=(net.sec, 'e2810218cd5d'), timeout=5000)
         while not wlan.isconnected():
             utime.sleep(3)
         print('WLAN connection succeeded!')
@@ -24,15 +65,15 @@ for net in nets:
 rtc = RTC()
 t = ntptime.time()
 tm = utime.gmtime(t)
-rtc.init((tm[0]+30, tm[1], tm[2], tm[6] , tm[3]+2 , tm[4], tm[5], 0))
-
+rtc.init((tm[0]+30, tm[1]-1, tm[2], tm[6] , tm[3]+2 , tm[4], tm[5], 0))
 py = Pysense()
+
 mp = MPL3115A2(py, mode=ALTITUDE)
 
 r = rtc.now()
 print("le "+str(r[2])+"/"+str(r[1])+"/"+str(r[0]) +" a " + str(r[4]) +"h"+str(r[5])+" a l'altitude " + str(mp.altitude()))
 
-
+"""
 
 
 
