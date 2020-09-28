@@ -33,6 +33,16 @@ r = rtc.now()
 print("le "+str(r[2])+"/"+str(r[1])+"/"+str(r[0]) +" a " + str(r[4]) +"h"+str(r[5])+" a l'altitude " + str(mp.altitude()))
 
 
+
+
+
+
+
+
+
+
+
+
 """
 rtc = RTC()
 print(rtc.now())
