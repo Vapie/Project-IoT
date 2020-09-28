@@ -10,27 +10,80 @@ from mqtt import MQTTClient
 from network import WLAN
 
 
-def push_data(list_histo_alti,altitude,date):
+print("start")
 
+
+def push_data(list_histo_alti,altitude,date):
     if len(list_histo_alti)>0:
         push_histo_data(list_histo_alti)
     client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"altitude\":\""+str(altitude)+"\",\"heure\":\""+"le "+str(date[2])+"/"+str(date[1])+"/"+str(date[0]) +" a " + str(date[4]) +"h"+str(date[5])+"\"}")
 
-def push_histo_data():
+def push_histo_data(list_histo_alti):
+    for historized_data in range():
+        altitude = historized_data[0]
+        date = historized_data[1]
+        client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"altitude\":\""+str(altitude)+"\",\"heure\":\""+"le "+str(date[2])+"/"+str(date[1])+"/"+str(date[0]) +" a " + str(date[4]) +"h"+str(date[5])+"\"}")
 
-    pass
-def try_to_connect():
+def try_to_connect(ssid,pass):
+    nets = wlan.scan()
+    #print("les nets: " + str(nets))
+    for net in nets:
+        if net.ssid == ssid:
+            print('Network found!')
+            wlan.connect(net.ssid, auth=(net.sec, pass), timeout=5000)
+            for x in range(3)
+                if not wlan.isconnected():
+                    utime.sleep(3)
+                else:
+                    return try_to_sync_clock()
+                    break
+            return False
 
-    pass
 def add_data_to_histo(list_histo_alti,altitude,date):
+    list_histo_alti.append[altitude,date]
+    return list_histo_alti
 
+def try_to_sync_clock():
     pass
 
-wlan = WLAN(mode=WLAN.STA)
 
-print("start")
+clock_is_synced = False
+wlan = WLAN(mode=WLAN.STA)
 nets = wlan.scan()
-print("les nets: " + str(nets))
+clock_is_synced = try_to_connect('AndroidAP4979','e2810218cd5d')
+
+
+py = Pysense()
+rtc = RTC()
+list_histo_alti = []
+
+while True:
+    altitude = MPL3115A2(py, mode=ALTITUDE).altitude()
+    t = ntptime.time()
+    tm = utime.gmtime(t)
+    date = rtc.now()
+    if wlan.connect() && not clock_is_synced:
+        #on sync la clock
+        clock_is_synced = try_to_sync_clock()
+        if clock_is_synced :
+            #on push les données
+            push_data(list_histo_alti,altitude,date)
+        else:
+            #on historise les données
+            add_data_to_histo(list_histo_alti,altitude,date)
+
+    elif wlan.connect() && clock_is_synced:
+        #on push juste les données
+        push_data(list_histo_alti,altitude,date)
+
+    else:
+        add_data_to_histo(list_histo_alti,altitude,date)
+        clock_is_synced = try_to_connect('AndroidAP4979','e2810218cd5d')
+        #on historise et on essaie de se connecter
+
+
+"""
+#print("les nets: " + str(nets))
 clock_is_synced = False
 for net in nets:
     if net.ssid == 'AndroidAP4979':
@@ -45,29 +98,8 @@ for net in nets:
         print('WLAN connection succeeded!')
         break
 
+"""
 
-Org_Id = "t8jaol"
-client = MQTTClient("d:"+Org_Id+":Pycom:123456", Org_Id +".messaging.internetofthings.ibmcloud.com",user="use-token-auth", password="Co_q7SzBQgSDO1Y-gW", port=1883)
-client.connect()
-print("Connected to Watson IoT!")
-py = Pysense()
-
-
-while True:
-    if wlan.connect() && not clock_is_synced:
-        #on sync la clock
-        if clock_is_synced :
-            #on push les données
-        else:
-            #on historise les données
-    elif wlan.connect() && clock_is_synced:
-        #on push juste les données
-
-    else:
-        #on historise et on essaie de se connecter
-
-
-altitude = MPL3115A2(py, mode=ALTITUDE).altitude()
 """
 rtc = RTC()
 t = ntptime.time()
