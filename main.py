@@ -9,99 +9,145 @@ import ntptime
 from mqtt import MQTTClient
 from network import WLAN
 
-
+#a faire antidatage + calcul dynamique du sleep de fin
 print("start")
 
 """ssid = 'AndroidAP4979'
 pass = 'e2810218cd5d'
-"""
 ssid="Livebox-fd84"
-password="EDCE75E392ECDDD3F25ECF7C4"
+password="EDCE75E392ECDDD3F25ECCF7C4"
+"""
+ssid="aaaa"
+password="yoyoyoyo"
 Org_Id = "t8jaol"
 
 
 def push_data(list_histo_alti,altitude,str_date,client):
     try:
-        print("push")
-        client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"altitude\":\""+str(altitude)+"\",\"heure\":\""+date+"\"}")
-        if len(list_histo_alti)>0:
-            push_histo_data(list_histo_alti,client)
+        client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"altitude\":\""+str(altitude)+"\",\"heure\":\""+str(str_date)+"\"}")
+        print("push"+str_date)
+
     except:
-        list_histo_alti = add_data_to_histo(list_histo_alti,altitude,str_date)
+       list_histo_alti = add_data_to_histo(list_histo_alti,altitude,str_date)
+       print("merd" + str(list_histo_alti))
     finally:
+        try:
+            print(len(list_histo_alti))
+            if len(list_histo_alti)>0:
+                list_histo_alti = push_histo_data(list_histo_alti,client)
+        except:
+            print("pas pu push l'histo")
         return list_histo_alti
     #client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"altitude\":\""+str(altitude)+"\",\"heure\":\""+"le "+str(date[2])+"/"+str(date[1])+"/"+str(date[0]) +" a " + str(date[4]) +"h"+str(date[5])+"\"}")
 
 def push_histo_data(list_histo_alti,client):
-    try:
-        for historized_data in range(list_histo_alti):
-            altitude = historized_data[0]
-            date = historized_data[1]
-            client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"altitude\":\""+str(altitude)+"\",\"heure\":\""+date+"\"}")
-            list_histo_alti.remove(historized_data)
-    finally:
-        return list_histo_alti
+    #try:
+
+    for historized_data in list_histo_alti:
+        print(str(historized_data))
+        altitude = historized_data[0]
+        str_date = historized_data[1]
+
+        client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"altitude\":\""+str(altitude)+"\",\"heure\":\""+str(str_date)+"\"}")
+
+        list_histo_alti.remove(historized_data)
+        print("yoyoyo")
+        print(historized_data+"pushhisto")
+    #except:
+    #   print("merd" + str(list_histo_alti))
+    #finally:
+    return list_histo_alti
 
 def try_to_connect(ssid,password,rtc):
     try:
         nets = wlan.scan()
         #print("les nets: " + str(nets))
         for net in nets:
+            print("try")
             if net.ssid == ssid:
                 print('Network found!')
                 wlan.connect(net.ssid, auth=(net.sec, password), timeout=5000)
                 if not wlan.isconnected():
-                    utime.sleep(3)
+                    utime.sleep(10)
                 else:
                     print("connected to network")
-                    client = MQTTClient("d:"+Org_Id+":Pycom:123456", Org_Id +".messaging.internetofthings.ibmcloud.com",user="use-token-auth", password="Co_q7SzBQgSDO1Y-gW", port=1883)
-                    client.connect()
                     return try_to_sync_clock(rtc)
                 return False
     except:
         return False
 
 def add_data_to_histo(list_histo_alti,altitude,str_date):
-    list_histo_alti.append([altitude,str_date])
+    list_histo_alti.append([str(altitude),str_date])
     return list_histo_alti
 
 def try_to_sync_clock(rtc):
     try:
         t = ntptime.time()
+        #différence de
+        t=utime.ticks_add(t,-79200)
         tm = utime.gmtime(t)
-        rtc.init((tm[0]+30, tm[1]-1, tm[2], tm[6] , tm[3]+1 , tm[4], 0, 0))
+        rtc.init((tm[0]+30, tm[1], tm[2], tm[3] , tm[4] , tm[5], 0, 0))
         return True
     except:
         return False
 
+
+
+
+wlan = WLAN(mode=WLAN.STA)
+try_to_connect(ssid,password,RTC())
+
+if not wlan.isconnected():
+    print("merd")
+def test():
+    client = MQTTClient("d:"+Org_Id+":Pycom:123456", Org_Id +".messaging.internetofthings.ibmcloud.com",user="use-token-auth", password="Co_q7SzBQgSDO1Y-gW", port=1883)
+    client.connect()
+    client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"altitude\":\"test\",\"heure\":\"test\"}")
+test()
+"""
+"""
 client = None
 py = Pysense()
 list_histo_alti = []
 rtc = RTC()
+clock_has_been_synced=False
 clock_is_synced = False
+client_is_connected = False
 wlan = WLAN(mode=WLAN.STA)
-nets = wlan.scan()
 clock_is_synced = try_to_connect(ssid,password,rtc)
+count = 0
+client = MQTTClient("d:"+Org_Id+":Pycom:123456", Org_Id +".messaging.internetofthings.ibmcloud.com",user="use-token-auth", password="Co_q7SzBQgSDO1Y-gW", port=1883)
 
 while True:
+    if clock_is_synced :
+        clock_has_been_synced = True
+    if not client_is_connected and clock_has_been_synced:
+        client = MQTTClient("d:"+Org_Id+":Pycom:123456", Org_Id +".messaging.internetofthings.ibmcloud.com",user="use-token-auth", password="Co_q7SzBQgSDO1Y-gW", port=1883)
+        client.connect()
+        client_is_connected = True
     altitude = str(MPL3115A2(py, mode=ALTITUDE).altitude())
-    date = rtc.now()
-    str_date ="le "+str(date[2])+"/"+str(date[1])+"/"+str(date[0]) +" a " + str(date[4]) +"h"+str(date[5])
-    if wlan.isconnected() and not clock_is_synced:
+
+    if(clock_has_been_synced):
+        date = rtc.now()
+        str_date ="le "+str(date[2])+"/"+str(date[1])+"/"+str(date[0]) +" a " + str(date[3]) +"h"+str(date[4])
+    else:
+        str_date = count
+
+    if wlan.isconnected() and not clock_has_been_synced:
         #on sync la clock
         clock_is_synced = try_to_sync_clock(rtc)
-        if clock_is_synced :
+        if clock_has_been_synced :
             #on push les données
-            list_histo_alti = push_data(list_histo_alti,altitude,date,client)
+            list_histo_alti = push_data(list_histo_alti,altitude,str_date,client)
             print("try push tf")
         else:
             #on historise les données
             print("histo")
             add_data_to_histo(list_histo_alti,altitude,str_date)
 
-    elif wlan.isconnected() and clock_is_synced:
+    elif wlan.isconnected() and clock_has_been_synced:
         #on push juste les données
-        list_histo_alti = push_data(list_histo_alti,altitude,date,client)
+        list_histo_alti = push_data(list_histo_alti,altitude,str_date,client)
 
     else:
 
@@ -109,7 +155,32 @@ while True:
         clock_is_synced = try_to_connect(ssid,password,rtc)
         print(str(list_histo_alti))
         #on historise et on essaie de se connecter
+    utime.sleep(10)
+    count+=1
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+while True:
+    rtc = RTC()
     utime.sleep(1)
+    print(rtc.now())
+"""
+
+
+
+
+
+
 
 """
 #print("les nets: " + str(nets))
