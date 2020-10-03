@@ -66,11 +66,13 @@ def push_histo_data(list_histo_alti,client,token):
     return list_histo_alti
 
 def try_to_connect(ssid,password,rtc,list_histo_alti):
+    if list_histo_alti == None:
+        print('aie')
+        list_histo_alti = []
     try:
         nets = wlan.scan()
         #print("les nets: " + str(nets))
         for net in nets:
-            print("try")
             if net.ssid == ssid:
                 print('Network found!')
                 wlan.connect(net.ssid, auth=(net.sec, password), timeout=5000)
@@ -79,9 +81,13 @@ def try_to_connect(ssid,password,rtc,list_histo_alti):
                 else:
                     print("connected to network")
                     return try_to_sync_clock(rtc,list_histo_alti)
+                print("connected to network")
                 return False,list_histo_alti
     except:
+        print("erreur dans la connexion")
+    finally:
         return False,list_histo_alti
+
 def add_data_to_histo(list_histo_alti,altitude,str_date):
     list_histo_alti.append([str(altitude),str_date])
     return list_histo_alti
@@ -134,8 +140,7 @@ clock_has_been_synced=False
 clock_is_synced = False
 
 client_is_connected = False
-
-clock_is_synced,list_histo_alti = try_to_connect(ssid,password,rtc,list_histo_alti)
+clock_is_synced,list_histo_alti =try_to_connect(ssid,password,rtc,list_histo_alti)
 
 count = 0
 
@@ -157,13 +162,14 @@ while True:
     if wlan.isconnected() and not clock_has_been_synced:
         #on sync la clock
         clock_is_synced,list_histo_alti = try_to_sync_clock(rtc,list_histo_alti)
+        if clock_is_synced :
+            clock_has_been_synced = True
         if clock_has_been_synced :
-            #on push les données
+            date = rtc.now()
+            str_date ="le "+str(date[2])+"/"+str(date[1])+"/"+str(date[0]) +" a " + str(date[3]) +"h"+str(date[4])
             list_histo_alti = push_data(list_histo_alti,altitude,str_date,client,token)
-            print("try push tf")
         else:
             #on historise les données
-            print("histo")
             add_data_to_histo(list_histo_alti,altitude,str_date)
 
     elif wlan.isconnected() and clock_has_been_synced:
