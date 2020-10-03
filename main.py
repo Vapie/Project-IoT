@@ -31,16 +31,15 @@ Org_Id = "t8jaol"
 
 def push_data(list_histo_alti,altitude,str_date,client,token):
     try:
+        #essai de push mqtt
         client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"altitude\":\""+str(altitude)+"\",\"heure\":\""+str(str_date)+"\",\"heure\":\""+str(token)+"\"}")
-        print("push"+str_date)
-
     except:
+        #si on ne peut pas push on ajoute à l'histo
        list_histo_alti = add_data_to_histo(list_histo_alti,altitude,str_date)
-       print("merd" + str(list_histo_alti))
     finally:
         try:
-            print(len(list_histo_alti))
             if len(list_histo_alti)>0:
+                #si on a pu push les données , on essaye aussi d'envoyer les données historisées
                 list_histo_alti = push_histo_data(list_histo_alti,client,token)
         except:
             print("pas pu push l'histo")
@@ -48,8 +47,7 @@ def push_data(list_histo_alti,altitude,str_date,client,token):
     #client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"altitude\":\""+str(altitude)+"\",\"heure\":\""+"le "+str(date[2])+"/"+str(date[1])+"/"+str(date[0]) +" a " + str(date[4]) +"h"+str(date[5])+"\"}")
 
 def push_histo_data(list_histo_alti,client,token):
-    #try:
-    print(str(list_histo_alti)+"histotopush")
+    #on envoie une par une les données historisées
     new_list_histo_alti =list_histo_alti
     index = 0
     for historized_data in list_histo_alti:
@@ -59,13 +57,10 @@ def push_histo_data(list_histo_alti,client,token):
         client.publish(topic="iot-2/evt/status/fmt/json", msg="{\"altitude\":\""+str(altitude)+"\",\"heure\":\""+str(str_date)+"\",\"heure\":\""+str(token)+"\"}")
         new_list_histo_alti.remove(historized_data)
         index +=1
-
-    #except:
-    #   print("merd" + str(list_histo_alti))
-    #finally:
     return list_histo_alti
 
 def try_to_connect(ssid,password,rtc,list_histo_alti):
+    #connection à la wifi si le ssid correspond
     if list_histo_alti == None:
         print('aie')
         list_histo_alti = []
@@ -80,8 +75,9 @@ def try_to_connect(ssid,password,rtc,list_histo_alti):
                     utime.sleep(10)
                 else:
                     print("connected to network")
+                    #si on à pu se connecter, on synchronise l'horloge interne
                     return try_to_sync_clock(rtc,list_histo_alti)
-                print("connected to network")
+
                 return False,list_histo_alti
     except:
         print("erreur dans la connexion")
@@ -89,28 +85,32 @@ def try_to_connect(ssid,password,rtc,list_histo_alti):
         return False,list_histo_alti
 
 def add_data_to_histo(list_histo_alti,altitude,str_date):
+    #on ajoute les données à la liste d'historique
     list_histo_alti.append([str(altitude),str_date])
     return list_histo_alti
 
 def try_to_sync_clock(rtc,list_histo_alti):
+    #on synchronise l'horloge
     try:
         t = ntptime.time()
-        #différence de
+        #différence de fuseau horraire car le serveur pingé n'est pas en europe
         t=utime.ticks_add(t,-79200)
         tm = utime.gmtime(t)
         rtc.init((tm[0]+30, tm[1], tm[2], tm[3] , tm[4] , tm[5], 0, 0))
-
+        #si on peut synchroniser la date alors on peut dater les altitudes
         return True,histo_date_update(list_histo_alti,rtc)
     except:
         return False,list_histo_alti
 
 
 def generate_Token(token_length):
+    #on génère autant de caractères que token_length pour avoir une clée générée aléatoirement
     token= ""
     for x in range(token_length):
         token+=generate_token_char_from_list()
     return token
 def generate_token_char_from_list():
+    #on génère un caractère alléatoire , et on verifie s'il est dans la liste des caractères autorisés
     list=['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','0','1','2','3','4','5','6','7','8','9','-','_','(',')']
     char = chr((uos.urandom(1)[0]//4)+48)
     while char not in list:
@@ -118,7 +118,7 @@ def generate_token_char_from_list():
     return char
 
 def histo_date_update(list_histo_alti,rtc):
-    print('updating' + str(list_histo_alti))
+    #si on a des données dans l'histo , on leur donne une heure, rétroactivement, avec un interval de une minute
     if list_histo_alti!=[]:
         list_len = -len(list_histo_alti)
         date = rtc.now()
@@ -129,17 +129,21 @@ def histo_date_update(list_histo_alti,rtc):
             historized_data[1] = str_date
     return list_histo_alti
 
-
+#génération d'un token ""unique""
 token = generate_Token(64)
+
 wlan = WLAN(mode=WLAN.STA)
 client = None
 py = Pysense()
 list_histo_alti = []
+
 rtc = RTC()
+
 clock_has_been_synced=False
 clock_is_synced = False
 
 client_is_connected = False
+#on essaie de se connecter à internet
 clock_is_synced,list_histo_alti =try_to_connect(ssid,password,rtc,list_histo_alti)
 
 count = 0
@@ -148,6 +152,7 @@ while True:
     if clock_is_synced :
         clock_has_been_synced = True
     if not client_is_connected and clock_has_been_synced:
+        #connexion au client mqtt
         client = MQTTClient("d:"+Org_Id+":Pycom:123456", Org_Id +".messaging.internetofthings.ibmcloud.com",user="use-token-auth", password="Co_q7SzBQgSDO1Y-gW", port=1883)
         client.connect()
         client_is_connected = True
@@ -177,12 +182,13 @@ while True:
         list_histo_alti = push_data(list_histo_alti,altitude,str_date,client,token)
 
     else:
-
+        #si on est pas connecté, on historise et on essaye de se connecter
         list_histo_alti = add_data_to_histo(list_histo_alti,altitude,str_date)
         clock_is_synced,list_histo_alti = try_to_connect(ssid,password,rtc,list_histo_alti)
         print(str(list_histo_alti))
         #on historise et on essaie de se connecter
-    utime.sleep(5)
+    #on attend une minute
+    utime.sleep(60)
     count+=1
 
 
